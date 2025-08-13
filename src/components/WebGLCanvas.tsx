@@ -26,6 +26,10 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
     const vboRef = useRef<WebGLBuffer | null>(null);
     const uResolutionRef = useRef<WebGLUniformLocation | null>(null);
     const uTimeRef = useRef<WebGLUniformLocation | null>(null);
+    const uMouseRef = useRef<WebGLUniformLocation | null>(null);
+    const uMousePressedRef = useRef<WebGLUniformLocation | null>(null);
+    const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
+    const mousePressedRef = useRef<boolean>(false);
 
     // フルスクリーントグル関数
     const toggleFullscreen = () => {
@@ -97,11 +101,46 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
       };
       window.addEventListener("keydown", onKey);
 
+      // マウス座標の追跡
+      const onMouseMove = (e: MouseEvent) => {
+        const rect = canvas.getBoundingClientRect();
+        const dpr = 1; // DPRに合わせる
+        mouseRef.current = {
+          x: (e.clientX - rect.left) * dpr,
+          y: (rect.bottom - e.clientY) * dpr, // Y座標を反転（WebGLの座標系に合わせる）
+        };
+      };
+      canvas.addEventListener("mousemove", onMouseMove);
+
+      // マウスボタンの追跡
+      const onMouseDown = () => {
+        mousePressedRef.current = true;
+      };
+      const onMouseUp = () => {
+        mousePressedRef.current = false;
+      };
+      canvas.addEventListener("mousedown", onMouseDown);
+      canvas.addEventListener("mouseup", onMouseUp);
+      canvas.addEventListener("mouseleave", onMouseUp); // マウスがキャンバスを離れた時も放す
+
       let start = performance.now();
       const tick = (t: number) => {
         rafRef.current = requestAnimationFrame(tick);
         const sec = (t - start) / 1000;
         if (uTimeRef.current) gl.uniform1f(uTimeRef.current, sec);
+        if (uMouseRef.current) {
+          gl.uniform2f(
+            uMouseRef.current,
+            mouseRef.current.x,
+            mouseRef.current.y
+          );
+        }
+        if (uMousePressedRef.current) {
+          gl.uniform1f(
+            uMousePressedRef.current,
+            mousePressedRef.current ? 1.0 : 0.0
+          );
+        }
         gl.clearColor(0, 0, 0, 0);
         gl.clear(gl.COLOR_BUFFER_BIT);
         gl.drawArrays(gl.TRIANGLES, 0, 3);
@@ -124,6 +163,10 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
         if (rafRef.current != null) cancelAnimationFrame(rafRef.current);
         window.removeEventListener("resize", onViewport);
         window.removeEventListener("keydown", onKey);
+        canvas.removeEventListener("mousemove", onMouseMove);
+        canvas.removeEventListener("mousedown", onMouseDown);
+        canvas.removeEventListener("mouseup", onMouseUp);
+        canvas.removeEventListener("mouseleave", onMouseUp);
         document.removeEventListener("fullscreenchange", onViewport);
 
         if (programRef.current) gl.deleteProgram(programRef.current);
@@ -180,10 +223,28 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
 
         uResolutionRef.current = gl.getUniformLocation(program, "u_resolution");
         uTimeRef.current = gl.getUniformLocation(program, "u_time");
+        uMouseRef.current = gl.getUniformLocation(program, "u_mouse");
+        uMousePressedRef.current = gl.getUniformLocation(
+          program,
+          "u_mouse_pressed"
+        );
 
         const w = canvas.width;
         const h = canvas.height;
         if (uResolutionRef.current) gl.uniform2f(uResolutionRef.current, w, h);
+        if (uMouseRef.current) {
+          gl.uniform2f(
+            uMouseRef.current,
+            mouseRef.current.x,
+            mouseRef.current.y
+          );
+        }
+        if (uMousePressedRef.current) {
+          gl.uniform1f(
+            uMousePressedRef.current,
+            mousePressedRef.current ? 1.0 : 0.0
+          );
+        }
       } catch (e) {
         onCompileError(String(e));
       }
