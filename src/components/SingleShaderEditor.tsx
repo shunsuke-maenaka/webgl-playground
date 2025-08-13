@@ -21,7 +21,7 @@ export const SingleShaderEditor: React.FC<SingleShaderEditorProps> = ({
       <div style={TEXTAREA_LABEL_STYLE}>{label}</div>
       <textarea
         spellCheck={false}
-        style={TEXTAREA_STYLE}
+        style={{ ...TEXTAREA_STYLE, flex: "1" }}
         value={value}
         onChange={(e) => onChange(e.target.value)}
       />

@@ -70,7 +70,7 @@ export const TEXTAREA_LABEL_STYLE: React.CSSProperties = {
 
 export const TEXTAREA_STYLE: React.CSSProperties = {
   width: "100%",
-  height: "240px",
+  height: "100%",
   background: "#0d0d0d",
   color: "#d8d8d8",
   border: "1px solid #333",
@@ -81,7 +81,7 @@ export const TEXTAREA_STYLE: React.CSSProperties = {
   fontSize: "12px",
   lineHeight: 1.5,
   outline: "none",
-  resize: "vertical",
+  resize: "none",
   overflow: "auto",
   boxSizing: "border-box",
 };
@@ -99,17 +99,22 @@ export const THREE_COLUMN_GRID_STYLE: React.CSSProperties = {
   gridTemplateColumns: "2fr 2fr 1fr",
   gap: "0.75rem",
   padding: "1rem",
-  flex: "0 0 auto",
+  flex: "1",
+  minHeight: 0,
 };
 
 export const SHADER_COLUMN_STYLE: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
+  height: "100%",
+  minHeight: 0,
 };
 
 export const COMPILE_LOG_COLUMN_STYLE: React.CSSProperties = {
   display: "flex",
   flexDirection: "column",
+  height: "100%",
+  minHeight: 0,
 };
 
 export const LOG_STYLE_OK: React.CSSProperties = {
