@@ -18,10 +18,7 @@ export interface WebGLCanvasRef {
 }
 
 export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
-  (
-    { vertSrc, fragSrc, onCompileError, onCompileSuccess, numParticles = 80 },
-    ref
-  ) => {
+  ({ onCompileError, onCompileSuccess, numParticles = 16383 }, ref) => {
     const canvasRef = useRef<HTMLCanvasElement | null>(null);
     const wrapRef = useRef<HTMLDivElement | null>(null);
     const rafRef = useRef<number | null>(null);
@@ -50,6 +47,7 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
     const uTimeRef = useRef<number>(0);
     const mouseRef = useRef<{ x: number; y: number }>({ x: 0, y: 0 });
     const mousePressedRef = useRef<boolean>(false);
+    const dprRef = useRef(1);
 
     // フルスクリーントグル
     const toggleFullscreen = () => {
@@ -82,7 +80,7 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
     uniform float u_maxForce;     // 500.0
     uniform float u_forceDecay;   // 0.98（今回は未使用でも良い）
     uniform float u_velDamp;      // 0.999
-    uniform float u_mouseInf;     // 300.0
+    uniform float u_mouseInf;     // 2000.0
     uniform float u_minDist;      // 20.0
     uniform int   u_numParticles;
     out vec4 outState;
@@ -103,8 +101,8 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
       if (u_mouse_pressed > 0.5) {
         vec2 d = u_mouse - pos;
         float d2 = dot(d,d);
-        float invLen = inversesqrt(max(d2, u_minDist*u_minDist));
-        float mag = min(u_mouseInf / (d2 + 1.0), u_maxForce);
+        float invLen = inversesqrt(d2 + u_minDist*u_minDist);
+        float mag = min(u_mouseInf * invLen, u_maxForce); // 実質 ~ 1/d
         acc += d * invLen * mag;
       }
 
@@ -274,7 +272,8 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
       const resizeBackbuffer = () => {
         const wrap = wrapRef.current;
         if (!wrap) return;
-        const dpr = 1; // 必要なら window.devicePixelRatio
+        const dpr = window.devicePixelRatio || 1; // 必要なら window.devicePixelRatio
+        dprRef.current = dpr;
         const w = Math.max(1, Math.round(wrap.clientWidth * dpr));
         const h = Math.max(1, Math.round(wrap.clientHeight * dpr));
         if (canvas.width !== w || canvas.height !== h) {
@@ -283,18 +282,17 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
           gl.viewport(0, 0, w, h);
         }
       };
-      const onViewport = () => requestAnimationFrame(resizeBackbuffer);
+      const onViewport = () => resizeBackbuffer(); // 初期化時は同期反映
       window.addEventListener("resize", onViewport);
       document.addEventListener("fullscreenchange", onViewport);
-      onViewport();
+      onViewport(); // 実寸がここで確定
 
       // 入力
       const onMouseMove = (e: MouseEvent) => {
         const rect = canvas.getBoundingClientRect();
-        const dpr = 1;
         mouseRef.current = {
-          x: (e.clientX - rect.left) * dpr,
-          y: (rect.bottom - e.clientY) * dpr,
+          x: (e.clientX - rect.left) * dprRef.current,
+          y: (e.clientY - rect.top) * dprRef.current,
         };
       };
       const onMouseDown = () => (mousePressedRef.current = true);
@@ -448,8 +446,8 @@ export const WebGLCanvas = forwardRef<WebGLCanvasRef, WebGLCanvasProps>(
         gl.uniform1f(uUpd.current.u_dt, dt);
         gl.uniform1f(uUpd.current.u_maxForce, 500.0);
         gl.uniform1f(uUpd.current.u_forceDecay, 0.98);
-        gl.uniform1f(uUpd.current.u_velDamp, 0.999);
-        gl.uniform1f(uUpd.current.u_mouseInf, 300.0);
+        gl.uniform1f(uUpd.current.u_velDamp, 0.9975);
+        gl.uniform1f(uUpd.current.u_mouseInf, 900000.0);
         gl.uniform1f(uUpd.current.u_minDist, 20.0);
         gl.uniform1i(uUpd.current.u_numParticles, numParticles);
 
